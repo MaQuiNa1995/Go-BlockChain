@@ -8,13 +8,11 @@ import (
 func main() {
 	chain := model.InitBlockChain()
 
-	chain.AddBlock("First Block after Genesis")
-	chain.AddBlock("Second Block after Genesis")
-	chain.AddBlock("Third Block after Genesis")
+	for i := 1; i < 4; i++ {
+		chain.AddBlock(fmt.Sprintf("%vº Block Despues del Genesis", i))
+	}
 
 	for _, block := range chain.Blocks {
-		fmt.Printf("Previous Hash: %x\n", block.PrevHash)
-		fmt.Printf("Data in Block: %s\n", block.Data)
-		fmt.Printf("Hash: %x\n", block.Hash)
+		fmt.Printf("Bloque:\n\tPrevious Hash: %x\n\tData in Block: %s\n\tHash: %x\n\n", block.PrevHash, block.Data, block.Hash)
 	}
 }
