@@ -1,15 +1,15 @@
 package model
 
-type blockChain struct {
+type BlockChain struct {
 	Blocks []*block
 }
 
-func (chain *blockChain) AddBlock(data string) {
+func (chain *BlockChain) AddBlock(data string) {
 	prevBlock := chain.Blocks[len(chain.Blocks)-1]
 	newBlock := CreateBlock(data, prevBlock.Hash)
 	chain.Blocks = append(chain.Blocks, newBlock)
 }
 
-func InitBlockChain() *blockChain {
-	return &blockChain{[]*block{Genesis()}}
+func InitBlockChain() *BlockChain {
+	return &BlockChain{[]*block{Genesis()}}
 }

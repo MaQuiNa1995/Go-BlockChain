@@ -3,6 +3,7 @@ package main
 import (
 	"MaQuina1995/blockchain/model"
 	"fmt"
+	"strconv"
 )
 
 func main() {
@@ -13,6 +14,9 @@ func main() {
 	}
 
 	for _, block := range chain.Blocks {
-		fmt.Printf("Bloque:\n\tPrevious Hash: %x\n\tData in Block: %s\n\tHash: %x\n\n", block.PrevHash, block.Data, block.Hash)
+		fmt.Printf("Bloque:\n\tHash Anterior: %x\n\tDato Del Bloque: %s\n\tHash: %x\n\n", block.PrevHash, block.Data, block.Hash)
+
+		pow := model.NewProof(block)
+		fmt.Printf("\tPrueba de Trabajo: %s\n\n", strconv.FormatBool(pow.Validate()))
 	}
 }

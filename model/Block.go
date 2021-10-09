@@ -1,20 +1,10 @@
 package model
 
-import (
-	"bytes"
-	"crypto/sha256"
-)
-
 type block struct {
 	Hash     []byte
 	Data     []byte
 	PrevHash []byte
-}
-
-func (b *block) CalculateHash() {
-	info := bytes.Join([][]byte{b.Data, b.PrevHash}, []byte{})
-	hash := sha256.Sum256(info)
-	b.Hash = hash[:]
+	Nonce    int
 }
 
 func CreateBlock(data string, prevHash []byte) *block {
@@ -23,9 +13,20 @@ func CreateBlock(data string, prevHash []byte) *block {
 		Hash:     []byte{},
 		Data:     []byte(data),
 		PrevHash: prevHash,
+		Nonce:    0, // inicializamos el nonce a 0
 	}
 
-	block.CalculateHash()
+	// creamos la prueba de trabajo
+	pow := NewProof(block)
+
+	// Y la iniciamos
+	nonce, hash := pow.Run()
+
+	// Cuando hayamos completado la prueba de trabajo
+	// podremos rellenar el nonce y el hash obtenido
+	block.Hash = hash[:]
+	block.Nonce = nonce
+
 	return block
 }
 
