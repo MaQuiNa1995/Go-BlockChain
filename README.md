@@ -1,3 +1,5 @@
+[![wakatime](https://wakatime.com/badge/github/MaQuiNa1995/Go-BlockChain.svg)](https://wakatime.com/badge/github/MaQuiNa1995/Go-BlockChain)
+
 # Que es Blockchain
 
 Es una base de datos publica que está distribuida en múltiples nodos
@@ -204,6 +206,7 @@ type ProofOfWork struct {
 
 ## Creando Proof of work
 
+Con está función desde un puntero a un bloque obtendríamos un puntero a una prueba de trabajo
 ```
 func NewProof(b *block) *ProofOfWork {
         // Crearemos nuestro target 
@@ -222,4 +225,208 @@ func NewProof(b *block) *ProofOfWork {
 }
 ```
 
-Con está función desde un puntero a un bloque obtendríamos un puntero a una prueba de trabajo
+## Iniciar Prueba de trabajo
+
+Este método será el que inicie los datos de la prueba de trabajo tendremos que combinar:
+* Hash del bloque previo 
+* Hash del dato
+* Hash del contador
+* Hash de la dificultad
+
+```
+func (pow *ProofOfWork) InitData(nonce int) []byte {
+
+	// usaremos el bytes.Join
+	data := bytes.Join(
+		[][]byte{
+			// Meteremos el prevHash y el dato
+			pow.Block.PrevHash,
+			pow.Block.Data,
+			// Adicionalmente meteremos el nonce y la dificultad
+			// Acordarse de cuando hablamos del algoritmo de proof of work 
+			// Crear el hash del dato + el nonce
+			// Para simplificar las cosas crearemos una nueva
+			// función que explicaremos a continuación y castearemos
+			// los int a int 64 para pasarseles a ToHex()
+			ToHex(int64(nonce)),
+			ToHex(int64(difficulty)),
+		},
+		[]byte{},
+	)
+
+	return data
+}
+
+// De un int64 obtendremos un slice de bytes simplemente
+func ToHex(num int64) []byte {
+	buff := new(bytes.Buffer)
+	err := binary.Write(buff, binary.BigEndian, num)
+	if err != nil {
+		log.Panic(err)
+	}
+	return buff.Bytes()
+}
+```
+## Ejecución de la prueba de trabajo para firmar el bloque
+```
+func (pow *ProofOfWork) Run() (int, []byte) {
+	var intHash big.Int
+	var hash [32]byte
+
+	// Iniciamos el contador
+	nonce := 0
+
+	// Haremos una especie de do while (Si venís de otro lenguaje)
+	// En este loop prepararemos nuestro dato y
+	// luego lo hashearemos a sha-256
+	// Seguidamente convertiremos ese Hash a un biginteger
+	// Por ultimo compararemos ese biginteger generado con el del target
+	// Que estará dentro de nuestro struct de proof of work
+	for nonce < math.MaxInt64 {
+		// Llamaremos a nuestro InitData para preparar el dato
+		data := pow.InitData(nonce)
+		// Los hashearemos
+		hash = sha256.Sum256(data)
+
+		// Con fines de demostración hacemos un log en pantalla
+		fmt.Printf("\r%x", hash)
+
+		// haremos una copia del slice
+		intHash.SetBytes(hash[:])
+
+		// Ahora compararemos el hash generado con el del target
+		if intHash.Cmp(pow.Target) == -1 {
+			// Si el hash generado es menor nos salimos del bucle
+			// Ya que esto quiere decir que hemos podido firmar el bloque
+			break
+		}
+		// De otra forma seguimos incrementando el contador para repetir el proceso
+		nonce++
+	}
+	// hacemos un salto de línea para separar trazas
+	fmt.Println()
+
+	// retornamos el contador y una copia del slice
+	return nonce, hash[:]
+}
+```
+## Modificando el código previo
+
+Ahora necesitaremos cambiar el código del bloque para añadir el contador y poder implementar la validación de los requerimientos 
+
+```
+type block struct {
+	Hash     []byte
+	Data     []byte
+	PrevHash []byte
+	Nonce    int // Campo nuevo
+}
+
+func CreateBlock(data string, prevHash []byte) *block {
+
+	block := &block{
+		Hash:     []byte{},
+		Data:     []byte(data),
+		PrevHash: prevHash,
+		Nonce:    0, // inicializamos el nonce a 0
+	}
+
+	block.CalculateHash()
+	return block
+}
+```
+Eliminaremos tambien la función CalculateHash()
+```
+func (b *block) CalculateHash() {
+	info := bytes.Join([][]byte{b.Data, b.PrevHash}, []byte{})
+	hash := sha256.Sum256(info)
+	b.Hash = hash[:]
+}
+```
+ y cambiamos completamente la función que creaba bloques
+ 
+ Para rellenar con el nonce nuestro struct:
+ * Crear la prueba de trabajo
+ * Ejecutar la prueba de trabajo
+ * Informar el nonce y el hash en el bloque
+ ```
+ func CreateBlock(data string, prevHash []byte) *block {
+
+	block := &block{
+		Hash:     []byte{},
+		Data:     []byte(data),
+		PrevHash: prevHash,
+		Nonce:    0, // inicializamos el nonce a 0
+	}
+
+	// creamos la prueba de trabajo
+	pow := NewProof(block)
+
+	// Y la iniciamos
+	nonce, hash := pow.Run()
+
+	// Cuando hayamos completado la prueba de trabajo
+	// podremos rellenar el nonce y el hash obtenido
+	block.Hash = hash[:]
+	block.Nonce = nonce
+
+	return block
+}
+```
+
+## Validar Prueba de trabajo
+
+Básicamente lo que se quiere hacer aqui es ejecutar el ciclo que ha hecho la prueba de trabajo una vez mas para ver si ese hash que se ha obtenido de la 1º ejecución es válido esto podría evitar por ejemplo que de casualidad a fuerza bruta demos con un hash correcto
+
+Es decir no valdría con solo proveer del hash correcto sino tambien proveer de los pasos que has hecho para llegar a ese hash gracias al nonce (contador) por fuerza bruta sería inviable ya que por cada hash tendrías que ejecutar N veces el nonce es decir:
+
+Por fuerza bruta generamos (pongamos 3):
+* 111222333
+	* Generamos el par con nonce 1 
+	* Generamos el par con nonce 2
+	* etc 
+* 222333444
+ 	* Generamos el par con nonce 1 
+ 	* Generamos el par con nonce 2
+ 	* etc
+* 333444555
+ 	* Generamos el par con nonce 1 
+	* Generamos el par con nonce 2 
+	* etc
+
+Por lo tanto si ya es dificil dar con el hash correcto imagínate tener que probar N veces con el nonce se hace prácticamente inviable ya que da millones y millones de combinaciones por no decir trillones...
+```
+func (pow *ProofOfWork) Validate() bool {
+	var intHash big.Int
+
+        // Aqui está el truco de la validación explicada mas abajo
+	data := pow.InitData(pow.Block.Nonce)
+
+	hash := sha256.Sum256(data)
+	intHash.SetBytes(hash[:])
+
+	return intHash.Cmp(pow.Target) == -1
+}
+```
+
+Al crear el bloque el nonce que se le pasa es 0 pero aqui directamente es uno que se ha calculado por lo tanto de primeras crearemos el hash correcto de aqui viene lo que decíamos antes de que probar la validez de la prueba de trabajo es relativamente fácil 
+
+Como dijimos antes:
+* Realizar la prueba de trabajo es dificil
+* Pero probarla es relativamente fácil
+
+Si quieres cambiar el hash de un bloque vas a tener que recalcular el hash propio (que eso ya es bastante costoso) y los hashes de los bloques siguientes y aparte hacer creer que ese bloque que has metido es un bloque confiable 
+
+Podemos validar un bloque relativamente rápido pero el trabajo para crear el bloque y firmarle es muy dificil por lo tanto podemos afirmar que es muy dificil manipular un bloque por una o una gran cantidad de entidades 
+
+## Juntando todo en el main
+
+Por últimos tenemos que añadir esta prueba de trabajo a nuestro main
+
+Antes del final del loop añadiremos:
+```
+pow := model.NewProof(block)
+fmt.Printf("Prueba de Trabajo: %s\n\n", strconv.FormatBool(pow.Validate()))
+```
+
+[Código en el repo hasta aqui](https://github.com/MaQuiNa1995/Go-BlockChain/tree/2a67da8b90523cb669a2cb8b0f6a65931bc6cade)
