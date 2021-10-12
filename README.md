@@ -430,3 +430,20 @@ fmt.Printf("Prueba de Trabajo: %s\n\n", strconv.FormatBool(pow.Validate()))
 ```
 
 [Código en el repo hasta aqui](https://github.com/MaQuiNa1995/Go-BlockChain/tree/2a67da8b90523cb669a2cb8b0f6a65931bc6cade)
+
+# Persistencia con blockchain
+
+Usaremos [BadgedDb](https://dgraph.io/badger) que es una base de datos clave valor de bytes es decir no existe SQL columnas tablas etc se persiste en un fichero que definimos
+
+Dependencia: `go get github.com/dgraph-io/badger`
+
+En la especificación original de BitCoin cada bloque tendría su propio fichero esto se hace asi por tema de rendimiento ya que solo tendríamos que lidiar con 1 bloque a la vez en vez de varios en nuestr caso no lo haremos asi ya que nuestra blockchain va a ser pequeña
+
+para poder persistir nuestro blockchain en badgeDb tendremos que añadir al struct un nuevo campo
+```
+type BlockChain struct {
+	LastHash []byte
+	Database *badger.DB
+}
+```
+Ahora en vez de guardar todos los bloques se guardará el ultimo hash del bloque que estará persistido en la base de datos 
